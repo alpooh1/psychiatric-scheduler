@@ -23,18 +23,55 @@ export const useScheduleStore = create((set, get) => ({
 
         const scheduleRef = ref(db, 'schedule');
         onValue(scheduleRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                // Merge with defaults to ensure structure
-                set({
-                    doctors: data.doctors || initialDoctors,
-                    outpatientSlots: data.outpatientSlots || [],
-                    initialized: true
+            try {
+                const data = snapshot.val();
+                console.log('Firebase Sync Data (Raw):', data);
+
+                // Deep Merge Logic
+                const mergedDoctors = initialDoctors.map((initDoc, docIdx) => {
+                    // Safety: Ensure data.doctors is accessible
+                    const remoteDoc = data?.doctors?.[docIdx];
+                    if (!remoteDoc) return initDoc;
+
+                    return {
+                        ...initDoc,
+                        name: remoteDoc.name || initDoc.name,
+                        // Fix 1: Handle 'slots' possibly being undefined in remoteDoc
+                        slots: initDoc.slots.map((initSlot, slotIdx) => {
+                            const remoteSlots = remoteDoc.slots;
+                            // Fix 2: Handle 'remoteSlots' being an object or array, or undefined
+                            const remoteSlot = remoteSlots ? remoteSlots[slotIdx] : undefined;
+
+                            if (!remoteSlot) return initSlot;
+
+                            return {
+                                ...initSlot,
+                                ...remoteSlot,
+                                // Enforce ID/Type preservation
+                                id: initSlot.id,
+                                type: initSlot.type
+                            };
+                        })
+                    };
                 });
-            } else {
-                // If empty DB, initialize it
-                set({ initialized: true });
-                // Optional: Write initial data? No, let's keep it empty/default local until first write.
+
+                // Safety: Verify result is valid before setting store
+                if (Array.isArray(mergedDoctors)) {
+                    set({
+                        doctors: mergedDoctors,
+                        outpatientSlots: Array.isArray(data?.outpatientSlots) ? data.outpatientSlots : (Object.values(data?.outpatientSlots || {}) || []),
+                        initialized: true
+                    });
+                } else {
+                    console.error('Merged doctors is not an array!', mergedDoctors);
+                }
+
+            } catch (error) {
+                console.error('CRITICAL: Error processing Firebase data', error);
+                // On error, do not break the app, just keep existing state or use defaults
+                if (!get().initialized) {
+                    set({ doctors: initialDoctors, initialized: true });
+                }
             }
         });
     },

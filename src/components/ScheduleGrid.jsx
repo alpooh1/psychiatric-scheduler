@@ -70,6 +70,8 @@ const DroppableCell = ({ day, time, room, schedule, isOutpatient, onToggleOutpat
     );
 };
 
+
+
 const TimeRow = ({ time, days, schedule, outpatientSlots, toggleOutpatientSlot }) => {
     return (
         <div className="contents">
@@ -105,8 +107,10 @@ export default function ScheduleGrid() {
 
     // Derive schedule map from doctors
     const schedule = useMemo(() => {
+        if (!Array.isArray(doctors)) return {};
         const map = {};
         doctors.forEach(doc => {
+            if (!doc?.slots) return; // Safety check for slots
             doc.slots.forEach(slot => {
                 if (slot.day && slot.time && slot.room) {
                     const key = `${slot.day}-${slot.room}-${slot.time}`;

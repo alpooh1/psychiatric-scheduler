@@ -177,7 +177,7 @@ export default function DoctorList() {
 
     return (
         <div className="h-full overflow-y-auto pr-2 space-y-3">
-            {doctors.map(doctor => (
+            {Array.isArray(doctors) && doctors.map(doctor => (
                 <DoctorRow key={doctor.id} doctor={doctor} />
             ))}
         </div>
