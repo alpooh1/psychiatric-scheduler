@@ -1,89 +1,107 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { db } from '../firebase';
+import { ref, onValue, set, update } from "firebase/database";
 
 // Generate 9 initial doctors
 const initialDoctors = Array.from({ length: 9 }, (_, i) => ({
     id: `doctor-${i + 1}`,
     name: `의사 ${i + 1}`,
-    // Each doctor has 2 configurable slots to drag from
     slots: [
         { id: `d${i + 1}-s1`, type: 'CBT', day: '', time: '', room: '', status: 'Assignable', startDate: '' },
         { id: `d${i + 1}-s2`, type: 'IPT', day: '', time: '', room: '', status: 'Assignable', startDate: '' },
     ],
 }));
 
-export const useScheduleStore = create(
-    persist(
-        (set) => ({
-            doctors: initialDoctors,
-            // Set of strings "day-room-time" that are marked as outpatient
-            outpatientSlots: [],
+export const useScheduleStore = create((set, get) => ({
+    doctors: initialDoctors,
+    outpatientSlots: [],
+    initialized: false, // Track if we've loaded data
 
-            updateDoctorName: (doctorId, name) =>
-                set((state) => ({
-                    doctors: state.doctors.map((d) =>
-                        d.id === doctorId ? { ...d, name } : d
-                    ),
-                })),
+    // Listener to sync from Firebase
+    initFirebase: () => {
+        if (get().initialized) return;
 
-            updateDoctorSlotConfig: (doctorId, slotIndex, field, value) =>
-                set((state) => ({
-                    doctors: state.doctors.map((d) => {
-                        if (d.id !== doctorId) return d;
-                        const newSlots = [...d.slots];
-                        newSlots[slotIndex] = { ...newSlots[slotIndex], [field]: value };
-                        return { ...d, slots: newSlots };
-                    }),
-                })),
+        const scheduleRef = ref(db, 'schedule');
+        onValue(scheduleRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Merge with defaults to ensure structure
+                set({
+                    doctors: data.doctors || initialDoctors,
+                    outpatientSlots: data.outpatientSlots || [],
+                    initialized: true
+                });
+            } else {
+                // If empty DB, initialize it
+                set({ initialized: true });
+                // Optional: Write initial data? No, let's keep it empty/default local until first write.
+            }
+        });
+    },
 
-            updateDoctorSlotStatus: (doctorId, slotIndex, status) =>
-                set((state) => ({
-                    doctors: state.doctors.map((d) => {
-                        if (d.id !== doctorId) return d;
-                        const newSlots = [...d.slots];
-                        newSlots[slotIndex] = { ...newSlots[slotIndex], status };
-                        return { ...d, slots: newSlots };
-                    }),
-                })),
+    updateDoctorName: (doctorId, name) => {
+        // Optimistic update
+        const state = get();
+        const docIndex = state.doctors.findIndex(d => d.id === doctorId);
+        if (docIndex === -1) return;
 
-            updateDoctorSlotStartDate: (doctorId, slotIndex, startDate) =>
-                set((state) => ({
-                    doctors: state.doctors.map((d) => {
-                        if (d.id !== doctorId) return d;
-                        const newSlots = [...d.slots];
-                        newSlots[slotIndex] = { ...newSlots[slotIndex], startDate };
-                        return { ...d, slots: newSlots };
-                    }),
-                })),
+        // Path: schedule/doctors/{index}/name
+        const doctorRef = ref(db, `schedule/doctors/${docIndex}/name`);
+        set(doctorRef, name);
+    },
 
-            moveSlot: (doctorId, slotIndex, day, time, room) =>
-                set((state) => ({
-                    doctors: state.doctors.map((d) => {
-                        if (d.id !== doctorId) return d;
-                        const newSlots = [...d.slots];
-                        newSlots[slotIndex] = {
-                            ...newSlots[slotIndex],
-                            day,
-                            time,
-                            room
-                        };
-                        return { ...d, slots: newSlots };
-                    }),
-                })),
+    updateDoctorSlotConfig: (doctorId, slotIndex, field, value) => {
+        const state = get();
+        const docIndex = state.doctors.findIndex(d => d.id === doctorId);
+        if (docIndex === -1) return;
 
-            toggleOutpatientSlot: (day, room, time) =>
-                set((state) => {
-                    const key = `${day}-${room}-${time}`;
-                    const exists = state.outpatientSlots.includes(key);
-                    if (exists) {
-                        return { outpatientSlots: state.outpatientSlots.filter(s => s !== key) };
-                    } else {
-                        return { outpatientSlots: [...state.outpatientSlots, key] };
-                    }
-                })
-        }),
-        {
-            name: 'schedule-storage', // unique name
+        // Path: schedule/doctors/{docIdx}/slots/{slotIdx}/{field}
+        const fieldRef = ref(db, `schedule/doctors/${docIndex}/slots/${slotIndex}/${field}`);
+        set(fieldRef, value);
+    },
+
+    updateDoctorSlotStatus: (doctorId, slotIndex, status) => {
+        const state = get();
+        const docIndex = state.doctors.findIndex(d => d.id === doctorId);
+        if (docIndex === -1) return;
+
+        const statusRef = ref(db, `schedule/doctors/${docIndex}/slots/${slotIndex}/status`);
+        set(statusRef, status);
+    },
+
+    updateDoctorSlotStartDate: (doctorId, slotIndex, startDate) => {
+        const state = get();
+        const docIndex = state.doctors.findIndex(d => d.id === doctorId);
+        if (docIndex === -1) return;
+
+        const dateRef = ref(db, `schedule/doctors/${docIndex}/slots/${slotIndex}/startDate`);
+        set(dateRef, startDate);
+    },
+
+    moveSlot: (doctorId, slotIndex, day, time, room) => {
+        const state = get();
+        const docIndex = state.doctors.findIndex(d => d.id === doctorId);
+        if (docIndex === -1) return;
+
+        // Update multiple fields: day, time, room
+        const slotRef = ref(db, `schedule/doctors/${docIndex}/slots/${slotIndex}`);
+        update(slotRef, { day, time, room });
+    },
+
+    toggleOutpatientSlot: (day, room, time) => {
+        const state = get();
+        const key = `${day}-${room}-${time}`;
+        const exists = state.outpatientSlots.includes(key);
+
+        let newSlots;
+        if (exists) {
+            newSlots = state.outpatientSlots.filter(s => s !== key);
+        } else {
+            newSlots = [...state.outpatientSlots, key];
         }
-    )
-);
+
+        // Update entire array (simple)
+        const refOutpatient = ref(db, 'schedule/outpatientSlots');
+        set(refOutpatient, newSlots);
+    }
+}));

@@ -7,11 +7,14 @@ import { useScheduleStore } from './store/useScheduleStore';
 import { COLORS } from './constants';
 
 function App() {
-  const { moveSlot } = useScheduleStore();
+  const { moveSlot, initFirebase } = useScheduleStore();
   const [activeItem, setActiveItem] = React.useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
+    // Initialize Firebase listener
+    initFirebase();
+
     const auth = sessionStorage.getItem('pt_scheduler_auth');
     if (auth === 'true') {
       setIsAuthenticated(true);
