@@ -7,13 +7,14 @@ import { useScheduleStore } from './store/useScheduleStore';
 import { COLORS } from './constants';
 
 function App() {
-  const { moveSlot } = useScheduleStore();
+  const { moveSlot, initSupabase } = useScheduleStore();
   const [activeItem, setActiveItem] = React.useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Initialize Supabase Listener removed because it is not defined
-    
+    // Initialize Supabase Listener
+    initSupabase();
+
     const auth = sessionStorage.getItem('pt_scheduler_auth');
     if (auth === 'true') {
       setIsAuthenticated(true);
