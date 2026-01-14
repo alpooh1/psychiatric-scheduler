@@ -25,7 +25,7 @@ const DroppableCell = ({ day, time, room, schedule, isOutpatient, onToggleOutpat
     const assignedClass = assigned ? COLORS[assigned.type] : '';
 
     // Standard border unless specially highlighted (removed specific border logic for assignment status as requested to use circles instead, but kept subtle border for structure)
-    let borderClass = 'border-slate-100';
+    let borderClass = 'border-slate-400';
 
     const finalClass = twMerge(baseClasses, borderClass, assigned ? assignedClass : bgClass);
 
@@ -57,7 +57,7 @@ const DroppableCell = ({ day, time, room, schedule, isOutpatient, onToggleOutpat
             )}
 
             {isOutpatient && (
-                <span className="font-bold text-slate-500">외래</span>
+                <span className="hidden"></span>
             )}
 
             {assigned && (
@@ -76,13 +76,13 @@ const TimeRow = ({ time, days, schedule, outpatientSlots, toggleOutpatientSlot }
     return (
         <div className="contents">
             {/* Time Header */}
-            <div className="bg-slate-100 text-slate-500 font-medium text-xs flex items-center justify-center border-b border-slate-200 sticky left-0 z-20">
+            <div className="bg-slate-100 text-slate-500 font-medium text-xs flex items-center justify-center border-b border-gray-400 sticky left-0 z-20">
                 {time}
             </div>
 
             {/* Day Columns */}
             {days.map(day => (
-                <div key={`${day.id}-${time}`} className="border-b border-r border-slate-200 p-1 bg-white relative">
+                <div key={`${day.id}-${time}`} className="border-b border-r border-gray-400 p-1 bg-white relative">
                     <div className="grid grid-cols-2 grid-rows-2 gap-1 h-28">
                         {ROOMS.map(room => (
                             <DroppableCell
@@ -144,11 +144,11 @@ export default function ScheduleGrid() {
                 <div className="grid" style={{ gridTemplateColumns: '80px repeat(5, minmax(180px, 1fr))' }}>
 
                     {/* Header Row */}
-                    <div className="sticky top-0 z-30 bg-slate-50 border-b border-slate-200 h-10 flex items-center justify-center text-xs font-bold text-slate-500 shadow-sm">
+                    <div className="sticky top-0 z-30 bg-slate-50 border-b border-gray-400 h-10 flex items-center justify-center text-xs font-bold text-slate-500 shadow-sm">
                         시간
                     </div>
                     {DAYS.map(day => (
-                        <div key={day.id} className="sticky top-0 z-30 bg-slate-50 border-b border-slate-200 border-r h-10 flex items-center justify-center text-sm font-bold text-slate-700 shadow-sm">
+                        <div key={day.id} className="sticky top-0 z-30 bg-slate-50 border-b border-r border-gray-400 h-10 flex items-center justify-center text-sm font-bold text-slate-700 shadow-sm">
                             {day.label}
                         </div>
                     ))}
